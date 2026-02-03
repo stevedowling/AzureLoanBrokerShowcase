@@ -8,7 +8,11 @@
 
 ## Overview
 
-This is a fully functional loan broker system demonstrating NServiceBus 10 on .NET 10 with Azure services running locally in Docker containers. The system processes loan requests by querying multiple banks, selecting the best quote, and notifying customers.
+This is a fully functional loan broker system demonstrating NServiceBus 10 on .NET 10 with Azure services. The system processes loan requests by querying multiple banks, selecting the best quote, and notifying customers.
+
+> [!IMPORTANT]
+> This application requires a **real Azure Service Bus namespace**. You cannot run this without an Azure subscription.
+> The Service Bus Emulator has been removed in favor of using real Azure infrastructure.
 
 ## Architecture
 
@@ -20,8 +24,8 @@ This is a fully functional loan broker system demonstrating NServiceBus 10 on .N
 - **EmailSender** - Sends notifications to customers
 
 ### Infrastructure
-- **Azure Service Bus Emulator** - Message transport
-- **SQL Server 2022** - Persistence for sagas and timeouts
+- **Azure Service Bus** - Message transport (requires Azure subscription)
+- **SQL Server 2022** - Persistence for sagas and timeouts (runs in Docker)
 - **ServiceControl** - Message monitoring and error handling
 - **ServicePulse** - Web UI for monitoring
 - **Prometheus & Grafana** - Metrics and dashboards
@@ -35,11 +39,17 @@ This is a fully functional loan broker system demonstrating NServiceBus 10 on .N
 - **.NET 10 SDK** - [Download](https://dotnet.microsoft.com/download/dotnet/10.0)
 - **Docker Desktop** - 8GB+ RAM recommended
 - **Docker Compose v2+**
+- **Azure Subscription** - For Azure Service Bus (free tier available)
+
+### Azure Resources Required
+- **Azure Service Bus namespace** (Standard or Premium tier)
+  - Basic tier is NOT supported by NServiceBus
+  - Standard tier: ~$0.05/hour + message charges
+  - Free tier includes limited messages per month
 
 ### Available Ports
 Ensure these ports are free:
 - `1433` - SQL Server
-- `5672` - Azure Service Bus Emulator
 - `8080` - ServiceControl RavenDB
 - `9090` - Prometheus
 - `3000` - Grafana
@@ -48,6 +58,77 @@ Ensure these ports are free:
 - `44444` - ServiceControl Audit
 - `33633` - ServiceControl Monitoring
 - `9999` - ServicePulse UI
+
+---
+
+## Initial Setup
+
+### 1. Create Azure Service Bus Namespace
+
+#### Option A: Using Azure CLI (Recommended)
+
+```bash
+# Login to Azure
+az login
+
+# Create a resource group
+az group create --name loan-broker-rg --location eastus
+
+# Create Service Bus namespace (Standard tier)
+az servicebus namespace create \
+  --resource-group loan-broker-rg \
+  --name loanbroker-sb-dev \
+  --location eastus \
+  --sku Standard
+
+# Get the connection string
+az servicebus namespace authorization-rule keys list \
+  --resource-group loan-broker-rg \
+  --namespace-name loanbroker-sb-dev \
+  --name RootManageSharedAccessKey \
+  --query primaryConnectionString -o tsv
+```
+
+#### Option B: Using Azure Portal
+
+1. Go to https://portal.azure.com
+2. Search for "Service Bus" and click "Create"
+3. Fill in the details:
+   - **Subscription**: Your Azure subscription
+   - **Resource Group**: Create new (e.g., `loan-broker-rg`)
+   - **Namespace name**: Choose unique name (e.g., `loanbroker-sb-dev`)
+   - **Location**: Choose closest region
+   - **Pricing tier**: Select **Standard** (Basic is not supported!)
+4. Click "Review + Create" then "Create"
+5. Once created, navigate to the namespace
+6. Go to "Settings" > "Shared access policies"
+7. Click "RootManageSharedAccessKey"
+8. Copy the "Primary Connection String"
+
+### 2. Configure Connection String
+
+```bash
+# Copy the template file
+cp env/azure.env.template env/azure.env
+
+# Edit the file with your connection string
+# Replace both AZURE_SERVICE_BUS_CONNECTION_STRING and CONNECTIONSTRING
+nano env/azure.env  # or use your preferred editor
+```
+
+Your `env/azure.env` should look like:
+
+```bash
+AZURE_SERVICE_BUS_CONNECTION_STRING=Endpoint=sb://loanbroker-sb-dev.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YOUR_KEY_HERE
+CONNECTIONSTRING=Endpoint=sb://loanbroker-sb-dev.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YOUR_KEY_HERE
+SQL_CONNECTION_STRING=Server=sqlserver;Database=NServiceBus;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+CREDIT_BUREAU_URL=http://creditbureau:8080/api/score
+```
+
+> [!CAUTION]
+> - Never commit `env/azure.env` to source control (it's already in .gitignore)
+> - Each developer needs their own connection string
+> - Keep your connection strings secure
 
 ---
 
@@ -81,7 +162,7 @@ Test summary: total: 4, failed: 0, succeeded: 4
 
 ```bash
 cd ..
-docker-compose up -d servicebus-emulator sqlserver creditbureau servicecontrol-db
+docker-compose up -d sqlserver creditbureau servicecontrol-db
 ```
 
 Wait 30-60 seconds for services to initialize.
@@ -165,42 +246,39 @@ You should see messages flowing through ServicePulse and traces in Jaeger.
 - Pre-configured dashboards for NServiceBus metrics
 - Message throughput, processing time, queue lengths
 
----
-
 ## Configuration
 
 ### Environment Variables (env/azure.env)
 
 ```env
-# Azure Service Bus connection (emulator)
-AZURE_SERVICE_BUS_CONNECTION_STRING=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+# Azure Service Bus connection - REQUIRED
+# Get from: Azure Portal > Service Bus Namespace > Shared access policies > RootManageSharedAccessKey
+AZURE_SERVICE_BUS_CONNECTION_STRING=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YOUR_KEY_HERE
 
-# SQL Server connection
+# ServiceControl connection (same as above)
+CONNECTIONSTRING=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YOUR_KEY_HERE
+
+# SQL Server connection (local Docker SQL Server)
 SQL_CONNECTION_STRING=Server=sqlserver;Database=NServiceBus;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
 
 # Credit Bureau Azure Function URL
 CREDIT_BUREAU_URL=http://creditbureau:8080/api/score
 ```
 
-### Service Bus Emulator (servicebus-config.json)
+### Azure Service Bus Queues
 
-```json
-{
-  "UserConfig": {
-    "Logging": {
-      "Type": "Console"
-    },
-    "NamespaceConfig": [
-      {
-        "Name": "loanbroker-local",
-        "Properties": {
-          "MessagingSku": "Premium"
-        }
-      }
-    ]
-  }
-}
-```
+The following queues will be created automatically by NServiceBus on first run:
+- `LoanBroker` - Main loan broker endpoint
+- `Bank1Adapter`, `Bank2Adapter`, `Bank3Adapter` - Bank adapters
+- `EmailSender` - Email notification service
+- `Client` - Client application
+- `error` - Failed messages
+- `audit` - Audit messages
+- `Particular.ServiceControl` - ServiceControl endpoint
+- `Particular.ServiceControl.Audit` - Audit processing
+- `Particular.Monitoring` - Monitoring metrics
+
+You can view these in the Azure Portal under your Service Bus namespace.
 
 ---
 
@@ -217,10 +295,23 @@ dotnet build
 
 1. Start infrastructure:
    ```bash
-   docker-compose up -d servicebus-emulator sqlserver creditbureau
+   docker-compose up -d sqlserver creditbureau
    ```
 
-2. Run a service:
+2. Set environment variables:
+   ```bash
+   # Linux/Mac
+   export AZURE_SERVICE_BUS_CONNECTION_STRING="Endpoint=sb://..."
+   export SQL_CONNECTION_STRING="Server=localhost,1433;Database=NServiceBus;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+   export CREDIT_BUREAU_URL="http://localhost:7071/api/score"
+   
+   # Windows PowerShell
+   $env:AZURE_SERVICE_BUS_CONNECTION_STRING="Endpoint=sb://..."
+   $env:SQL_CONNECTION_STRING="Server=localhost,1433;Database=NServiceBus;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+   $env:CREDIT_BUREAU_URL="http://localhost:7071/api/score"
+   ```
+
+3. Run a service:
    ```bash
    cd src/LoanBroker
    dotnet run
@@ -241,21 +332,32 @@ ports:
 
 ## Troubleshooting
 
-### Service Bus Connection Issues
+### Azure Service Bus Connection Issues
 
-**Problem:** Services can't connect to Service Bus Emulator
+**Problem:** Services can't connect to Azure Service Bus
 
 **Solution:**
 ```bash
-# Check emulator is running
-docker-compose ps servicebus-emulator
+# Verify your connection string is set
+docker-compose config | grep AZURE_SERVICE_BUS_CONNECTION_STRING
+
+# Check if the namespace exists
+az servicebus namespace show \
+  --resource-group loan-broker-rg \
+  --name your-namespace-name
+
+# Test connectivity from your machine
+# Install Azure Service Bus SDK and test from a simple console app
 
 # View logs
-docker-compose logs servicebus-emulator
-
-# Restart
-docker-compose restart servicebus-emulator
+docker-compose logs loan-broker
 ```
+
+**Common Issues:**
+- Connection string missing or incorrect format
+- Service Bus namespace not in Standard/Premium tier
+- Firewall blocking outbound connections to Azure
+- Connection string contains invalid characters or quotes
 
 ### SQL Server Connection Issues
 
@@ -289,9 +391,11 @@ The schema is created automatically by NServiceBus installers on first run. Ensu
 
 **Solution:**
 1. Check all services are running: `docker-compose ps`
-2. Check ServiceControl is healthy: `curl http://localhost:33333/api/`
-3. View service logs: `docker-compose logs loan-broker`
-4. Check Service Bus queues exist (created automatically)
+2. Verify Azure Service Bus connection string is configured
+3. Check ServiceControl is healthy: `curl http://localhost:33333/api/`
+4. View service logs: `docker-compose logs loan-broker`
+5. Check Azure Portal - verify queues are being created
+6. Ensure queues have messages (Azure Portal > Service Bus > Queues)
 
 ### High Memory Usage
 
@@ -308,12 +412,36 @@ docker-compose --profile minimal up
 
 ---
 
+## Cost Management
+
+### Azure Service Bus Costs
+
+**Standard Tier:**
+- Base: ~$0.05/hour (~$10/month)
+- Messages: First 12.5M operations/month included
+- Additional: $0.80 per million operations
+
+**Tips to minimize costs:**
+1. Use the same namespace for dev/test
+2. Delete namespace when not in use:
+   ```bash
+   az servicebus namespace delete \
+     --resource-group loan-broker-rg \
+     --name your-namespace-name
+   ```
+3. Share namespace across team members
+4. Use Azure free credits if available
+
+---
+
 ## Architecture Decisions
 
-### Why Azure Service Bus Emulator?
-- Local development without cloud costs
-- Full Azure Service Bus feature compatibility
-- Easy CI/CD integration
+### Why Real Azure Service Bus?
+- Production-grade messaging infrastructure
+- Better matches real-world scenarios
+- No emulator limitations or compatibility issues
+- Same infrastructure for dev, test, and production
+- Native Azure integration
 
 ### Why SQL Server for Persistence?
 - Reliable, well-tested persistence
@@ -350,8 +478,8 @@ docker-compose --profile minimal up
 - **C# 14** - Language features
 
 ### Infrastructure
-- **Azure Service Bus Emulator** - Transport
-- **SQL Server 2022** - Persistence
+- **Azure Service Bus** - Transport (requires Azure)
+- **SQL Server 2022** - Persistence (local Docker)
 - **Docker & Docker Compose** - Container orchestration
 
 ### Monitoring
@@ -367,7 +495,8 @@ docker-compose --profile minimal up
 
 ### Documentation
 - [NServiceBus Documentation](https://docs.particular.net/nservicebus/)
-- [Azure Service Bus Emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator)
+- [Azure Service Bus](https://learn.microsoft.com/azure/service-bus-messaging/)
+- [Azure Service Bus Transport](https://docs.particular.net/transports/azure-service-bus/)
 - [SQL Persistence](https://docs.particular.net/persistence/sql/)
 
 ### Common Issues
@@ -385,10 +514,12 @@ MIT License - See LICENSE file for details.
 
 ### v2.0 (February 2026)
 - ✅ Upgraded to .NET 10
-- ✅ Migrated to Azure Service Bus Emulator
+- ✅ Migrated to Real Azure Service Bus (requires Azure subscription)
+- ✅ Removed Azure Service Bus Emulator
 - ✅ Migrated to SQL Server persistence
 - ✅ Converted Lambda to Azure Functions
 - ✅ All NServiceBus packages to v10
+- ✅ Added comprehensive setup documentation
 
 ### v1.0 (Original)
 - .NET 8

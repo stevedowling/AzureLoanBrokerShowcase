@@ -103,3 +103,6 @@ src/scaffolding.config
 
 # Docker volumes
 src/volumes
+
+# Environment files with credentials
+env/azure.env
