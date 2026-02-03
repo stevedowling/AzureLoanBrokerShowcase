@@ -111,16 +111,15 @@ The Azure LoanBroker showcase is a comprehensive loan broker implementation foll
 
 ### Alternative: Azure Managed Identity (Production)
 
-For production environments, use Azure Managed Identity instead of connection strings:
-
-```csharp
-// This is already supported in the code
-// Just set the namespace instead of full connection string:
-// AZURE_SERVICE_BUS_CONNECTION_STRING=your-namespace.servicebus.windows.net
-```
+For production environments, consider using Azure Managed Identity instead of connection strings for better security.
 
 > [!NOTE]
-> The current implementation uses connection strings for simplicity. To use Managed Identity, you would need to modify `SharedConventions.cs` to detect when only a namespace is provided and use `DefaultAzureCredential`.
+> The current implementation uses connection strings. To use Managed Identity, you would need to:
+> 1. Modify `SharedConventions.cs` to detect when only a namespace is provided (without full connection string)
+> 2. Use `new AzureServiceBusTransport(fullyQualifiedNamespace, new DefaultAzureCredential(), TopicTopology.Default)`
+> 3. Configure Azure RBAC roles for your application identity
+> 
+> This is not currently implemented but would be a recommended enhancement for production deployments.
 
 ---
 

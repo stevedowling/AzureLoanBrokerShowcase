@@ -417,20 +417,20 @@ docker-compose --profile minimal up
 ### Azure Service Bus Costs
 
 **Standard Tier:**
-- Base: ~$0.05/hour (~$10/month)
+- Base: ~$0.05/hour (~$36/month for continuous use)
 - Messages: First 12.5M operations/month included
 - Additional: $0.80 per million operations
 
 **Tips to minimize costs:**
-1. Use the same namespace for dev/test
-2. Delete namespace when not in use:
+1. Use the same namespace for dev/test across team
+2. Delete namespace when not actively developing:
    ```bash
    az servicebus namespace delete \
      --resource-group loan-broker-rg \
      --name your-namespace-name
    ```
-3. Share namespace across team members
-4. Use Azure free credits if available
+3. Share one namespace across multiple team members
+4. Use Azure free credits if available ($200 for new accounts)
 
 ---
 
