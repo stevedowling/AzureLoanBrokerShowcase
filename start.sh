@@ -59,9 +59,8 @@ wait_for_http() {
 
 echo "Step 1/6: Starting Core Infrastructure"
 echo "---------------------------------------"
-docker-compose up -d servicebus-emulator sqlserver creditbureau servicecontrol-db
+docker-compose up -d sqlserver creditbureau servicecontrol-db
 
-wait_for_service "servicebus-emulator" 30
 wait_for_service "sqlserver" 30
 wait_for_service "creditbureau" 30
 wait_for_service "servicecontrol-db" 30

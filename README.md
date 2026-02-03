@@ -8,27 +8,118 @@ The Azure LoanBroker showcase is a comprehensive loan broker implementation foll
 > [!IMPORTANT]
 > **This showcase has been migrated from AWS to Azure services!**
 > - ✅ All services run on **.NET 10**
-> - ✅ **Azure Service Bus Emulator** (replaces AWS SQS)
-> - ✅ **SQL Server 2022** (replaces DynamoDB)
-> - ✅ **Azure Functions** (replaces Lambda)
+> - ✅ **Real Azure Service Bus** for messaging (requires Azure subscription)
+> - ✅ **SQL Server 2022** for persistence (runs locally in Docker)
+> - ✅ **Azure Functions** for serverless components (runs locally)
 > - ✅ **NServiceBus 10** with Azure transports
-> - ✅ Everything runs **locally in Docker** - no cloud account needed!
+> - ⚠️ **Azure Service Bus namespace required** - see setup instructions below
 
 ## 🎯 Quick Start
 
-```bash
-# Windows
-.\start.ps1
+### Prerequisites
+1. **Azure Service Bus namespace** (Standard or Premium tier)
+   - See [Setup Instructions](#setup-azure-service-bus) below
+2. **.NET 10 SDK**
+3. **Docker Desktop** (8GB+ RAM recommended)
 
-# Linux/Mac
-./start.sh
+### Setup Steps
 
-# Or manually
-docker-compose up -d
-docker-compose up client
-```
+1. **Configure Azure Service Bus connection**
+   ```bash
+   # Copy the template
+   cp env/azure.env.template env/azure.env
+   
+   # Edit env/azure.env and add your connection string
+   # Get it from: Azure Portal > Your Service Bus > Shared access policies > RootManageSharedAccessKey
+   ```
+
+2. **Start the application**
+   ```bash
+   # Windows
+   .\start.ps1
+   
+   # Linux/Mac
+   ./start.sh
+   
+   # Or manually
+   docker-compose up -d
+   docker-compose up client
+   ```
 
 **See [README-SETUP.md](README-SETUP.md) for detailed setup instructions.**
+
+---
+
+## Setup Azure Service Bus
+
+### Create Azure Service Bus Namespace
+
+1. **Sign in to Azure Portal**
+   - Go to https://portal.azure.com
+   - Sign in with your Azure account
+
+2. **Create a Service Bus Namespace**
+   ```bash
+   # Using Azure CLI (recommended)
+   az login
+   az group create --name loan-broker-rg --location eastus
+   az servicebus namespace create \
+     --resource-group loan-broker-rg \
+     --name your-namespace-name \
+     --location eastus \
+     --sku Standard
+   ```
+   
+   Or via Azure Portal:
+   - Search for "Service Bus" in the portal
+   - Click "+ Create"
+   - Fill in:
+     - Resource Group: Create new or use existing
+     - Namespace name: Choose a unique name (e.g., `loanbroker-sb-dev`)
+     - Location: Choose closest to you
+     - Pricing tier: **Standard** or **Premium** (Basic is NOT supported)
+   - Click "Review + Create" then "Create"
+
+3. **Get the Connection String**
+   - Navigate to your Service Bus namespace
+   - Go to "Settings" > "Shared access policies"
+   - Click on "RootManageSharedAccessKey"
+   - Copy the "Primary Connection String"
+   
+   It should look like:
+   ```
+   Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YOUR_KEY_HERE
+   ```
+
+4. **Configure the Application**
+   ```bash
+   # Copy the template
+   cp env/azure.env.template env/azure.env
+   
+   # Edit env/azure.env
+   nano env/azure.env  # or use your preferred editor
+   
+   # Paste your connection string for both variables:
+   AZURE_SERVICE_BUS_CONNECTION_STRING=Endpoint=sb://...
+   CONNECTIONSTRING=Endpoint=sb://...
+   ```
+
+> [!IMPORTANT]
+> - Never commit `env/azure.env` to source control (it's in .gitignore)
+> - Each developer should set up their own connection string
+> - For production, use Azure Managed Identity instead of connection strings
+
+### Alternative: Azure Managed Identity (Production)
+
+For production environments, consider using Azure Managed Identity instead of connection strings for better security.
+
+> [!NOTE]
+> The current implementation uses connection strings. To use Managed Identity, you would need to:
+> 1. Modify `SharedConventions.cs` to detect when only a namespace is provided (without full connection string)
+> 2. Use `new AzureServiceBusTransport(fullyQualifiedNamespace, new DefaultAzureCredential(), TopicTopology.Default)`
+> 3. Configure Azure RBAC roles for your application identity
+> 
+> This is not currently implemented but would be a recommended enhancement for production deployments.
 
 ---
 
@@ -63,11 +154,16 @@ The example also ships the following monitoring services:
 - .NET 10 SDK
 - Docker Desktop (8GB+ RAM recommended)
 - Docker Compose v2+
+- **Azure Service Bus namespace** (Standard or Premium tier)
 
 ## How to run the example
 
+> [!IMPORTANT]
+> Before running the example, you must configure your Azure Service Bus connection string.
+> See the [Setup Azure Service Bus](#setup-azure-service-bus) section above.
+
 The simplest way to run the example is using Docker for both the endpoints and the infrastructure.
-The client application, the loan broker service, the e-mail sender, and the bank adapters can be deployed as Docker containers alongside the Particular platform to monitor the system, Azure Service Bus Emulator for messaging, SQL Server for persistence, and the additional containers needed for enabling OpenTelemetry observability.
+The client application, the loan broker service, the e-mail sender, and the bank adapters can be deployed as Docker containers alongside the Particular platform to monitor the system, SQL Server for persistence, and the additional containers needed for enabling OpenTelemetry observability.
 
 ### Quick Start
 

@@ -57,9 +57,8 @@ function Wait-ForHttp {
 
 Write-Host "Step 1/6: Starting Core Infrastructure" -ForegroundColor Cyan
 Write-Host "---------------------------------------"
-docker-compose up -d servicebus-emulator sqlserver creditbureau servicecontrol-db
+docker-compose up -d sqlserver creditbureau servicecontrol-db
 
-Wait-ForService "servicebus-emulator" 30
 Wait-ForService "sqlserver" 30
 Wait-ForService "creditbureau" 30
 Wait-ForService "servicecontrol-db" 30

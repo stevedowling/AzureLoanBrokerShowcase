@@ -17,8 +17,16 @@ public static class SharedConventions
         var endpointConfiguration = new EndpointConfiguration(endpointName);
 
         // Configure Azure Service Bus Transport
-        var connectionString = Environment.GetEnvironmentVariable("AZURE_SERVICE_BUS_CONNECTION_STRING")
-            ?? throw new InvalidOperationException("AZURE_SERVICE_BUS_CONNECTION_STRING environment variable is not set.");
+        // Supports both connection string and Azure Identity authentication
+        var connectionString = Environment.GetEnvironmentVariable("AZURE_SERVICE_BUS_CONNECTION_STRING");
+        
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "AZURE_SERVICE_BUS_CONNECTION_STRING environment variable is not set. " +
+                "Please configure a valid Azure Service Bus connection string. " +
+                "See README-SETUP.md for setup instructions.");
+        }
 
         var transport = new AzureServiceBusTransport(connectionString, TopicTopology.Default);
         var routing = endpointConfiguration.UseTransport(transport);
