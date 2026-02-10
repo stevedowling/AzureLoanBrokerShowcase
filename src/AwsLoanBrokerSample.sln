@@ -65,8 +65,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "prometheus", "prometheus", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CreditBureau", "CreditBureau\CreditBureau.csproj", "{509D57E0-D9D7-425A-B3A5-009D7E16647E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NServiceBus.Transport.AzureServiceBus", "Transport\NServiceBus.Transport.AzureServiceBus.csproj", "{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -209,18 +207,6 @@ Global
 		{509D57E0-D9D7-425A-B3A5-009D7E16647E}.Release|x64.Build.0 = Release|Any CPU
 		{509D57E0-D9D7-425A-B3A5-009D7E16647E}.Release|x86.ActiveCfg = Release|Any CPU
 		{509D57E0-D9D7-425A-B3A5-009D7E16647E}.Release|x86.Build.0 = Release|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Debug|x64.Build.0 = Debug|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Debug|x86.Build.0 = Debug|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Release|x64.ActiveCfg = Release|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Release|x64.Build.0 = Release|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Release|x86.ActiveCfg = Release|Any CPU
-		{9AD7D408-EF2C-48D7-91EF-B7CB1D618CE8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
