@@ -64,6 +64,24 @@ The example also ships the following monitoring services:
 - Docker Desktop (8GB+ RAM recommended)
 - Docker Compose v2+
 
+## Building from Source
+
+To build the solution locally:
+
+```bash
+cd src
+dotnet build AwsLoanBrokerSample.sln
+```
+
+To run tests:
+
+```bash
+cd src
+dotnet test AwsLoanBrokerSample.sln
+```
+
+All dependencies are available on nuget.org. No additional package feeds are required.
+
 ## How to run the example
 
 The simplest way to run the example is using Docker for both the endpoints and the infrastructure.
