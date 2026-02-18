@@ -105,8 +105,8 @@ public static class SharedConventions
 
         ArgumentException.ThrowIfNullOrWhiteSpace(appInsightsConnectionString);
 
-        endpointConfiguration.EnableOpenTelemetryMetrics(appInsightsConnectionString);
-        endpointConfiguration.EnableOpenTelemetryTracing(appInsightsConnectionString);
+        //endpointConfiguration.EnableOpenTelemetryMetrics(appInsightsConnectionString);
+        //endpointConfiguration.EnableOpenTelemetryTracing(appInsightsConnectionString);
 
         endpointConfiguration.ConnectToServicePlatform(new ServicePlatformConnectionConfiguration
         {
