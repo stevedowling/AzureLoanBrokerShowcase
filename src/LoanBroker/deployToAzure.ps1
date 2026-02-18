@@ -16,4 +16,7 @@ finally {
     Pop-Location
 }
 
-az containerapp update --name loanbroker --resource-group tf-cloudxp-sc_cloud_experience-analysis-689 --image tf689registry.azurecr.io/loanbroker:latest;
+#This doesn't actually update the container app. Use the updateAzureContainerEnvironment.ps1 script with a new fake value to trigger an update.
+#az containerapp update --name loan-broker --resource-group tf-cloudxp-sc_cloud_experience-analysis-689 --image tf689registry.azurecr.io/loanbroker:latest;
+az containerapp update --name loan-broker --resource-group tf-cloudxp-sc_cloud_experience-analysis-689 `
+        --set-env-vars "TRIGGER_REBUILD_FAKE=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"

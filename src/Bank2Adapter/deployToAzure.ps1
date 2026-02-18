@@ -16,4 +16,7 @@ finally {
     Pop-Location
 }
 
-az containerapp update --name bank2 --resource-group tf-cloudxp-sc_cloud_experience-analysis-689 --image tf689registry.azurecr.io/bank2:latest;
+#This doesn't actually update the container app. Using set-env-vars with a new fake value to trigger an update.
+#az containerapp update --name bank2 --resource-group tf-cloudxp-sc_cloud_experience-analysis-689 --image tf689registry.azurecr.io/bank2:latest;
+az containerapp update --name bank2 --resource-group tf-cloudxp-sc_cloud_experience-analysis-689 `
+        --set-env-vars "TRIGGER_REBUILD_FAKE=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
