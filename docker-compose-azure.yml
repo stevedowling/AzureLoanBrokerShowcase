@@ -1,8 +1,7 @@
 ﻿name: loanbroker
 services:
   creditbureau:
-    profiles: ['', infrastructure]
-    image: creditbureau.tf689registry.azurecr.io:latest
+    image: tf689registry.azurecr.io/creditbureau:latest
     build:
       context: ./
       dockerfile: ./src/CreditBureau/Dockerfile
@@ -13,128 +12,190 @@ services:
       FUNCTIONS_WORKER_RUNTIME: "dotnet-isolated"
       WEBSITES_PORT: "8080"
       ASPNETCORE_URLS: "http://0.0.0.0:8080"
-    networks:
-      - ls
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+
   loan-broker:
-    profiles: ['']
+    image: tf689registry.azurecr.io/loanbroker:latest
     build:
       context: ./
       dockerfile: ./src/LoanBroker/Dockerfile
-    env_file:
-      - env/metrics.env
-      - env/azure.env
+    environment:
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
     depends_on:
-#      servicebus-emulator:
-#        condition: service_started
-#      sqlserver:
-#        condition: service_started
       creditbureau:
         condition: service_started
-#      servicepulse:
-#        condition: service_started
-    networks:
-      - ls
+      servicepulse:
+        condition: service_started
+
   bank1:
-    profiles: ['']
+    image: tf689registry.azurecr.io/bank1:latest
     build:
       context: ./
       dockerfile: ./src/Bank1Adapter/Dockerfile
-    env_file:
-      - env/metrics.env
-      - env/azure.env
-#    depends_on:
-#      servicebus-emulator:
-#        condition: service_started
-#      sqlserver:
-#        condition: service_started
-#      servicepulse:
-#        condition: service_started
-    networks:
-      - ls
+    environment:
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+    depends_on:
+      servicepulse:
+        condition: service_started
+
   bank2:
-    profiles: ['']
+    image: tf689registry.azurecr.io/bank2:latest
     build:
       context: ./
       dockerfile: ./src/Bank2Adapter/Dockerfile
-    env_file:
-      - env/metrics.env
-      - env/azure.env
-#    depends_on:
-#      servicebus-emulator:
-#        condition: service_started
-#      sqlserver:
-#        condition: service_started
-#      servicepulse:
-#        condition: service_started
-    networks:
-      - ls
+    environment:
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+    depends_on:
+      servicepulse:
+        condition: service_started
+
   bank3:
-    profiles: ['']
+    image: tf689registry.azurecr.io/bank3:latest
     build:
       context: ./
       dockerfile: ./src/Bank3Adapter/Dockerfile
-    env_file:
-      - env/metrics.env
-      - env/azure.env
-#    depends_on:
-#      servicebus-emulator:
-#        condition: service_started
-#      sqlserver:
-#        condition: service_started
-#      servicepulse:
-#        condition: service_started
-    networks:
-      - ls
+    environment:
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+    depends_on:
+      servicepulse:
+        condition: service_started
+
   email-sender:
-    profiles: ['']
+    image: tf689registry.azurecr.io/emailsender:latest
     build:
       context: ./
       dockerfile: ./src/EmailSender/Dockerfile
-    env_file:
-      - env/metrics.env
-      - env/azure.env
-#    depends_on:
-#      servicebus-emulator:
-#        condition: service_started
-#      sqlserver:
-#        condition: service_started
-#      servicepulse:
-#        condition: service_started
-    networks:
-      - ls
+    environment:
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+    depends_on:
+      servicepulse:
+        condition: service_started
+
   client:
-    profiles: ['']
+    image: tf689registry.azurecr.io/client:latest
     build:
       context: ./
       dockerfile: ./src/Client/Dockerfile
       args:
         BUILD_CONFIGURATION: Debug
     environment:
-      DOTNET_ENVIRONMENT: Development
-      DOTNET_EnableDiagnostics: "1"
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
     cap_add:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
-    env_file:
-      - env/metrics.env
-      - env/azure.env
     depends_on:
-#      servicebus-emulator:
-#        condition: service_started
-#      sqlserver:
-#        condition: service_started
-#      servicepulse:
-#        condition: service_started
       loan-broker:
         condition: service_started
-    networks:
-      - ls
     tty: true
     stdin_open: true
     command: --demo
-networks:
-  ls:
-    ipam:
-      config:
-        - subnet: 10.0.2.0/24
+
+  servicecontrol:
+    image: docker.io/particular/servicecontrol:latest
+    ports:
+      - "33333:33333"
+    command: --setup-and-run
+    environment:
+      RAVENDB_CONNECTIONSTRING: ${RAVENDB_CONNECTIONSTRING}
+      REMOTEINSTANCES: '[{"api_uri":"http://servicecontrol-audit:44444/api"}]'
+      SERVICECONTROL_ALLOWMESSAGEEDITING: 'true'
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+    depends_on:
+      servicecontrol-db:
+        condition: service_healthy
+      servicecontrol-audit:
+        condition: service_healthy
+
+  servicecontrol-db:
+    image: docker.io/particular/servicecontrol-ravendb:latest
+    environment:
+      - RAVEN_ARGS=--Setup.Mode=None
+      - RAVEN_Security_UnsecuredAccessAllowed=PublicNetwork
+    x-azure-deployment:
+      scale:
+        maxReplicas: 1
+        minReplicas: 1
+      ingress:
+        external: false
+        allowInsecure: true
+        transport: tcp
+        exposedPort: 8080
+
+  servicecontrol-audit:
+    image: docker.io/particular/servicecontrol-audit:latest
+    ports:
+      - "44444:44444"
+    args: ["--setup-and-run"]
+    environment:
+      RAVENDB_CONNECTIONSTRING: ${RAVENDB_CONNECTIONSTRING}
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      TRANSPORTTYPE: NetStandardAzureServiceBus
+      PARTICULARSOFTWARE_LICENSE: ${PARTICULARSOFTWARE_LICENSE}
+    depends_on:
+      servicecontrol-db:
+        condition: service_healthy
+
+  servicecontrol-monitoring:
+    image: docker.io/particular/servicecontrol-monitoring:latest
+    ports:
+      - "33633:33633"
+    args: ["--setup-and-run"]
+    environment:
+      RAVENDB_CONNECTIONSTRING: ${RAVENDB_CONNECTIONSTRING}
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      TRANSPORTTYPE: NetStandardAzureServiceBus
+      PARTICULARSOFTWARE_LICENSE: ${PARTICULARSOFTWARE_LICENSE}
+
+  servicepulse:
+    image: docker.io/particular/servicepulse:latest
+    ports:
+      - "9999:9090"
+    environment:
+      RAVENDB_CONNECTIONSTRING: ${RAVENDB_CONNECTIONSTRING}
+      AZURE_SERVICE_BUS_NAMESPACE: ${AZURE_SERVICE_BUS_NAMESPACE}
+      CONNECTIONSTRING: ${AZURE_SERVICE_BUS_NAMESPACE}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      CREDIT_BUREAU_URL: ${CREDIT_BUREAU_URL}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      TRANSPORTTYPE: NetStandardAzureServiceBus
+      PARTICULARSOFTWARE_LICENSE: ${PARTICULARSOFTWARE_LICENSE}
+    depends_on:
+      servicecontrol:
+        condition: service_healthy
+      servicecontrol-monitoring:
+        condition: service_healthy
+

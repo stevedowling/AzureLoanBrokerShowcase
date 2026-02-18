@@ -1,6 +1,7 @@
-﻿using NServiceBus.Configuration.AdvancedExtensibility;
+﻿using Azure.Monitor.OpenTelemetry.Exporter;
+using NServiceBus.Configuration.AdvancedExtensibility;
 using OpenTelemetry;
-using OpenTelemetry.Exporter;
+//using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -9,7 +10,7 @@ namespace CommonConfigurations;
 
 static class OpenTelemetryExtensions
 {
-    public static void EnableOpenTelemetryMetrics(this EndpointConfiguration endpointConfiguration)
+    public static void EnableOpenTelemetryMetrics(this EndpointConfiguration endpointConfiguration, string appInsightsConnectionString)
     {
         var endpointName = endpointConfiguration.GetSettings().EndpointName();
         var attributes = new Dictionary<string, object>
@@ -22,18 +23,25 @@ static class OpenTelemetryExtensions
 
         Sdk.CreateMeterProviderBuilder()
             .SetResourceBuilder(resourceBuilder)
-            .AddMeter("NServiceBus.Core.Pipeline.Incoming")
-            .AddMeter("LoanBroker")
-            .AddOtlpExporter(cfg =>
-            {
-                var url = Environment.GetEnvironmentVariable(OtlpMetricsUrlEnvVar) ?? OtlpMetricsDefaultUrl;
-                cfg.Endpoint = new Uri(url);
-                cfg.Protocol = OtlpExportProtocol.HttpProtobuf;
-            })
+            .AddMeter("NServiceBus.Core*")
+            .AddAzureMonitorMetricExporter(o => o.ConnectionString = appInsightsConnectionString)
+            .AddConsoleExporter()
             .Build();
+
+        // Sdk.CreateMeterProviderBuilder()
+        //     .SetResourceBuilder(resourceBuilder)
+        //     .AddMeter("NServiceBus.Core.Pipeline.Incoming")
+        //     .AddMeter("LoanBroker")
+        //     .AddOtlpExporter(cfg =>
+        //     {
+        //         var url = Environment.GetEnvironmentVariable(OtlpMetricsUrlEnvVar) ?? OtlpMetricsDefaultUrl;
+        //         cfg.Endpoint = new Uri(url);
+        //         cfg.Protocol = OtlpExportProtocol.HttpProtobuf;
+        //     })
+        //     .Build();
     }
 
-    public static void EnableOpenTelemetryTracing(this EndpointConfiguration endpointConfiguration)
+    public static void EnableOpenTelemetryTracing(this EndpointConfiguration endpointConfiguration, string appInsightsConnectionString)
     {
         var endpointName = endpointConfiguration.GetSettings().EndpointName();
 
@@ -47,19 +55,25 @@ static class OpenTelemetryExtensions
 
         Sdk.CreateTracerProviderBuilder()
             .SetResourceBuilder(resourceBuilder)
-            .AddSource("NServiceBus.Core")
-            .AddOtlpExporter(cfg =>
-            {
-                var url = Environment.GetEnvironmentVariable(OtlpTracesUrlEnvVar) ?? OtlpTracesDefaultUrl;
-                cfg.Endpoint = new Uri(url);
-                cfg.Protocol = OtlpExportProtocol.HttpProtobuf;
-            })
+            .AddSource("NServiceBus.Core*")
+            .AddAzureMonitorTraceExporter(o => o.ConnectionString = appInsightsConnectionString)
+            .AddConsoleExporter()
             .Build();
+
+        // Sdk.CreateTracerProviderBuilder()
+        //     .SetResourceBuilder(resourceBuilder)
+        //     .AddSource("NServiceBus.Core")
+        //     .AddOtlpExporter(cfg =>
+        //     {
+        //         var url = Environment.GetEnvironmentVariable(OtlpTracesUrlEnvVar) ?? OtlpTracesDefaultUrl;
+        //         cfg.Endpoint = new Uri(url);
+        //         cfg.Protocol = OtlpExportProtocol.HttpProtobuf;
+        //     })
+        //     .Build();
     }
 
-    const string OtlpMetricsDefaultUrl = "http://localhost:5318/v1/metrics";
-    const string OtlpTracesDefaultUrl = "http://localhost:4318/v1/traces";
-    const string OtlpMetricsUrlEnvVar = "OTLP_METRICS_URL";
-    const string OtlpTracesUrlEnvVar = "OTLP_TRACING_URL";
-
+    // const string OtlpMetricsDefaultUrl = "http://localhost:5318/v1/metrics";
+    // const string OtlpTracesDefaultUrl = "http://localhost:4318/v1/traces";
+    // const string OtlpMetricsUrlEnvVar = "OTLP_METRICS_URL";
+    // const string OtlpTracesUrlEnvVar = "OTLP_TRACING_URL";
 }

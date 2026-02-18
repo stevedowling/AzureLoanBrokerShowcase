@@ -1,13 +1,18 @@
 using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.Exporter;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NLog.Extensions.Logging;
 using NServiceBus.Extensions.Logging;
 using NServiceBus.Logging;
 using NServiceBus.Transport;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace CommonConfigurations;
 
-public record Customizations(EndpointConfiguration EndpointConfiguration, object Routing);
+public record Customizations(EndpointConfiguration EndpointConfiguration, RoutingSettings Routing);
 
 public static class SharedConventions
 {
@@ -19,22 +24,15 @@ public static class SharedConventions
         var endpointConfiguration = new EndpointConfiguration(endpointName);
 
         // Configure Azure Service Bus Transport
-        var connectionString = Environment.GetEnvironmentVariable("AZURE_SERVICE_BUS_CONNECTION_STRING");
+        var serviceBusNamespace = Environment.GetEnvironmentVariable("AZURE_SERVICE_BUS_NAMESPACE");
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-
-        var isFullyQualifiedConnectionString = !connectionString.Contains("sb://");
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceBusNamespace);
 
         // Use custom transport for emulator compatibility
-        var transport = isFullyQualifiedConnectionString
-            ? new AzureServiceBusTransport(connectionString, new DefaultAzureCredential(), TopicTopology.Default)
-                {
-                    TransportTransactionMode = TransportTransactionMode.ReceiveOnly
-                }
-            : new AzureServiceBusTransport(connectionString, TopicTopology.Default)
-                {
-                    TransportTransactionMode = TransportTransactionMode.ReceiveOnly
-                };
+        var transport = new AzureServiceBusTransport(serviceBusNamespace, new DefaultAzureCredential(), TopicTopology.Default)
+        {
+            TransportTransactionMode = TransportTransactionMode.ReceiveOnly
+        };
 
         var routing = endpointConfiguration.UseTransport(transport);
 
@@ -54,6 +52,23 @@ public static class SharedConventions
 
         builder.UseNServiceBus(endpointConfiguration);
 
+        var appInsightsFromBuildConnectionString = Environment.GetEnvironmentVariable("APP_INSIGHTS_CONNECTIONSTRING_BUILDER");
+
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resourceBuilder => resourceBuilder.AddService(endpointName))
+            .WithTracing(traceBuilder =>
+            {
+                traceBuilder.AddSource("NServiceBus.*")
+                    .AddAzureMonitorTraceExporter(o => o.ConnectionString = appInsightsFromBuildConnectionString)
+                    .AddConsoleExporter();
+            })
+            .WithMetrics(metricsBuilder =>
+            {
+                metricsBuilder.AddMeter("NServiceBus.*")
+                    .AddAzureMonitorMetricExporter(o => o.ConnectionString = appInsightsFromBuildConnectionString)
+                    .AddConsoleExporter();
+            });
+
         return builder;
     }
 
@@ -63,10 +78,35 @@ public static class SharedConventions
         // in production each container should map a volume to write diagnostic
         endpointConfiguration.CustomDiagnosticsWriter((_, _) => Task.CompletedTask);
         endpointConfiguration.UseSerialization<SystemJsonSerializer>();
-        endpointConfiguration.EnableOutbox();
+
+        var outboxKeepDedupeMinutesString = Environment.GetEnvironmentVariable("OUTBOX_KEEP_DEDUPE_MINUTES");
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboxKeepDedupeMinutesString);
+
+        if (!int.TryParse(outboxKeepDedupeMinutesString, out var outboxKeepDedupeMinutes))
+        {
+            throw new ArgumentException("OUTBOX_KEEP_DEDUPE_MINUTES must be a valid integer");
+        }
+
+        var outboxSettings = endpointConfiguration.EnableOutbox();
+
+        if (outboxKeepDedupeMinutes == 0)
+        {
+            outboxSettings.DisableCleanup();
+        }
+        else
+        {
+            outboxSettings.KeepDeduplicationDataFor(TimeSpan.FromMinutes(outboxKeepDedupeMinutes));
+        }
+
         endpointConfiguration.EnableInstallers();
-        endpointConfiguration.EnableOpenTelemetryMetrics();
-        endpointConfiguration.EnableOpenTelemetryTracing();
+
+        var appInsightsConnectionString = Environment.GetEnvironmentVariable("APP_INSIGHTS_CONNECTIONSTRING");
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(appInsightsConnectionString);
+
+        endpointConfiguration.EnableOpenTelemetryMetrics(appInsightsConnectionString);
+        endpointConfiguration.EnableOpenTelemetryTracing(appInsightsConnectionString);
 
         endpointConfiguration.ConnectToServicePlatform(new ServicePlatformConnectionConfiguration
         {

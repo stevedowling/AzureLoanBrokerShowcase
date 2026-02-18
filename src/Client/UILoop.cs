@@ -20,6 +20,8 @@ static class UILoop
         var messageSession = app.Services.GetRequiredService<IMessageSession>();
         var running = true;
         var continuousSend = false;
+        var continuousSendDelayMilliseconds = 1000;
+
         Console.CancelKeyPress += (_, e) =>
         {
             e.Cancel = true;
@@ -33,11 +35,21 @@ static class UILoop
 
             Console.WriteLine("Demo flag detected: Starting in continuous send mode");
             continuousSend = true;
+
+            if (args.Contains("--delayms"))
+            {
+                continuousSendDelayMilliseconds = int.Parse(args[args.IndexOf("--delayms") + 1]);
+            }
         }
 
         while (running)
         {
-            if (Console.KeyAvailable)
+            if (continuousSend)
+            {
+                await Task.Delay(continuousSendDelayMilliseconds);
+                await SendMessage(messageSession);
+            }
+            else if (Console.KeyAvailable)
             {
                 var k = Console.ReadKey(true);
                 switch (k.Key)
@@ -57,12 +69,6 @@ static class UILoop
                         running = false;
                         break;
                 }
-            }
-
-            if (continuousSend)
-            {
-                await Task.Delay(1000);
-                await SendMessage(messageSession);
             }
         }
     }
